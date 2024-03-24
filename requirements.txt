@@ -1,0 +1,3 @@
+selenium
+chromadb
+sentence_transformers
