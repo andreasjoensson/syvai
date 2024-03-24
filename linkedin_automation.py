@@ -7,7 +7,13 @@ from chromadb.utils import embedding_functions
 
 CHROMA_DATA_PATH = "chroma_data/"
 EMBED_MODEL = "all-MiniLM-L6-v2"
-COLLECTION_NAME = "comments_gladteknik_linkedin_th"
+COLLECTION_NAME = "comments_gladteknisk_linkedin_op"
+
+class LoginInputNotFoundError(Exception):
+    pass
+
+class ThreadNavigationError(Exception):
+    pass
 
 def query_collection(collection):
     """Foretag request til ChromaDB-collection."""    
@@ -56,7 +62,10 @@ def extract_comments(collection, driver, url):
     """Udtræk kommentarer fra LinkedIn-tråd og indsæt i ChromaDB-collection."""
     driver.get(url)
     time.sleep(6)
-    comment_elements = driver.find_elements(By.XPATH, "/html/body/div[5]/div[3]/div/div/div[2]/div/div/main/div/section/div/div/div/div/div[6]/div[3]/div[3]/div/article")
+    try:
+        comment_elements = driver.find_elements(By.XPATH, "/html/body/div[5]/div[3]/div/div/div[2]/div/div/main/div/section/div/div/div/div/div[6]/div[3]/div[3]/div/article")
+    except Exception as e:
+        raise ThreadNavigationError(f"Fejl ved at finde kommentarelementer: {e}")
 
     for i, comment_element in enumerate(comment_elements):
         author = comment_element.find_element(By.CSS_SELECTOR, ".comments-post-meta__name-text > span:nth-child(1) > span:nth-child(1)").text
@@ -81,9 +90,13 @@ def main(username, password, url):
     try:
         driver.get("https://www.linkedin.com/login")
         time.sleep(5)
-        driver.find_element(By.ID, "username").send_keys(username)
-        driver.find_element(By.ID, "password").send_keys(password)
-        sign_in_button = driver.find_element(By.XPATH, "//button[@aria-label='Log ind']")
+        try:
+            driver.find_element(By.ID, "username").send_keys(username)
+            driver.find_element(By.ID, "password").send_keys(password)
+            sign_in_button = driver.find_element(By.XPATH, "//button[@aria-label='Log ind']")
+        except Exception as e:
+            raise LoginInputNotFoundError(f"Fejl ved at finde login-inputs: {e}")
+
         sign_in_button.click()
         time.sleep(10)
         extract_comments(collection, driver, url)
@@ -94,7 +107,6 @@ def main(username, password, url):
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print("Usage: python linkedin_automation.py <username> <password> <linkedin_thread_url>")
+        print("Brug: python linkedin_automation.py <brugernavn> <adgangskode> <linkedin_tråd_url>")
         sys.exit(1)
     main(sys.argv[1], sys.argv[2], sys.argv[3])
-
